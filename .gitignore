@@ -1,0 +1,84 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+.pnpm-store/
+
+# Built files
+dist/
+build/
+/.next/
+/out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.test
+
+# Logs
+logs
+*.log
+logs/*
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Editor temp files
+*~
+*.swp
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Vite / frontend
+node_modules/
+dist/
+.vite/
+
+# Backend runtime jobs (file-based queue)
+# The repository uses a file-based jobs directory for backfill during development.
+# In production you will likely replace this with a queue or DB; keep a backup if needed.
+/backend/jobs/
+
+# Prisma client and generated
+prisma/dev.db
+prisma/migrations/
+
+# Misc
+coverage/
+coverage.out
+.nyc_output/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# JetBrains
+*.iml
+
+# npm global installs
+*.tgz
+
+# Lockfile for pnpm if present
+pnpm-lock.yaml
+
+# Optional: ignore local debug files
+debug.log
+
+# End

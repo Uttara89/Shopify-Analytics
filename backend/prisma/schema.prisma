@@ -1,0 +1,216 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========== Auth & Users ==========
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  sessions     Session[]
+  userTenants  UserTenant[]
+}
+
+model VerificationCode {
+  // Magic login code per email (ephemeral)
+  email     String   @id
+  codeHash  String
+  expiresAt DateTime
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// ========== Tenancy & Shopify App ==========
+
+model Tenant {
+  id             String        @id @default(uuid())
+  name           String
+  shopDomain     String        @unique                 // e.g., mystore.myshopify.com
+  apiVersion     String        @default("2024-07")
+  accessTokenEnc String                                 // AES-GCM encrypted Admin API token
+  apiSecret      String?       // make optional; prefer env SHOPIFY_WEBHOOK_SECRET if null
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  users          UserTenant[]
+  customers      Customer[]
+  products       Product[]
+  orders         Order[]
+  events         Event[]
+  webhookLogs    WebhookLog[]
+  syncStates     SyncState[]
+  backfillStates BackfillState[]
+}
+
+model UserTenant {
+  // Many-to-many between users and tenants
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+
+  @@id([userId, tenantId])
+  @@index([tenantId, userId])
+}
+
+// ========== Domain: Customers, Products, Orders ==========
+
+model Customer {
+  id             String   @id @default(uuid())
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId       String
+  shopCustomerId BigInt                                   // Shopify customer.id
+  email          String?
+  firstName      String?
+  lastName       String?
+  totalSpent     Decimal   @default(0) @db.Decimal(18, 2)  // running tally (optional)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  orders         Order[]
+
+  @@unique([tenantId, shopCustomerId])
+  @@index([tenantId, email])
+  @@index([tenantId])
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId      String
+  shopProductId BigInt                                   // Shopify product.id
+  title         String
+  status        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lineItems     OrderLineItem[]
+
+  @@unique([tenantId, shopProductId])
+  @@index([tenantId, title])
+  @@index([tenantId])
+}
+
+model Order {
+  id           String    @id @default(uuid())
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId     String
+  shopOrderId  BigInt                                    // Shopify order.id
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  customerId   String?
+  totalPrice   Decimal   @default(0) @db.Decimal(18, 2)
+  currency     String?
+  status       String?
+  processedAt  DateTime?                                 // for reporting windows
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  lineItems    OrderLineItem[]
+
+  @@unique([tenantId, shopOrderId])
+  @@index([tenantId, processedAt])
+  @@index([tenantId])
+  @@index([processedAt])
+}
+
+model OrderLineItem {
+  id            String    @id @default(uuid())
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId       String
+  @@index([orderId])
+  product       Product?  @relation(fields: [productId], references: [id])
+  productId     String?
+  // Shopify references available for debugging/joins if you ingest variants later
+  shopProductId BigInt?
+  shopVariantId BigInt?
+  title         String?
+  quantity      Int
+  price         Decimal   @default(0) @db.Decimal(18, 2)
+}
+
+// ========== Events (bonus) ==========
+
+model Event {
+  id         String   @id @default(uuid())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId   String
+  type       String   // e.g., "checkout_started", "cart_abandoned"
+  payload    Json
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, type, occurredAt])
+  @@index([tenantId])
+  @@index([occurredAt])
+}
+
+// ========== Webhooks & Sync State ==========
+
+model WebhookLog {
+  id        String   @id @default(uuid())
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tenantId  String?
+  topic     String
+  deliveryId String?  // X-Shopify-Delivery-Id header
+  payloadHash String? // sha256 hash of payload for idempotency
+  status    String   // "ok" | "error"
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, topic, createdAt])
+}
+
+model SyncState {
+  // Tracks backfill/incremental progress per resource per tenant
+  id        String   @id @default(uuid())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId  String
+  resource  String   // "customers" | "products" | "orders"
+  cursor    String?  // e.g., since_id, page_info, or timestamp
+  lastRunAt DateTime @default(now())
+
+  @@unique([tenantId, resource])
+  @@index([tenantId, resource])
+}
+
+model BackfillState {
+  // Stores cursor/timestamps specifically for backfill/resume operations
+  id           String   @id @default(uuid())
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId     String
+  resource     String   // "customers" | "products" | "orders"
+  cursor       String?  // last seen page_info, since_id, or timestamp
+  lastBackfillAt DateTime? // when a backfill run finished
+  lastSuccessAt DateTime?   // last successful item import time
+  status       String?  // optional: "running" | "idle" | "failed"
+  notes        String?  // optional freeform notes/debug info
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([tenantId, resource])
+  @@index([tenantId, resource])
+}
