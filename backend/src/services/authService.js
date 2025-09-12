@@ -26,6 +26,14 @@ export async function sendMagicCode(email) {
         update: { codeHash, expiresAt },
         create: { email, codeHash, expiresAt },
     });
+    // In non-production, optionally surface the OTP for team testing when
+    // SHOW_DEV_OTPS=true. Never enable in production.
+    if (process.env.SHOW_DEV_OTPS === 'true' && process.env.NODE_ENV !== 'production') {
+        // Log to server console (team should have access to staging logs) so
+        // developers/testers can retrieve the OTP without needing SMTP access.
+        console.log(`[DEV-OTP] email=${email} code=${code}`);
+    }
+
     await transporter.sendMail({
         from: process.env.SMTP_FROM,
         to: email,
