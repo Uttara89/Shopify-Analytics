@@ -1,4 +1,12 @@
-# Logs
+node_modules/
+dist/
+.env.local
+*.local
+deployed-js.txt
+*.log
+/.cache
+/.vite
+/.turbo# Logs
 logs
 *.log
 npm-debug.log*

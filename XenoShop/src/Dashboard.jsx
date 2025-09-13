@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { apiFetch, BASE_URL } from './api';
 
 function Dashboard() {
   const [tenantId, setTenantId] = useState('');
@@ -79,7 +80,7 @@ function Dashboard() {
 
   async function fetchTenants() {
     try {
-      const res = await fetch('http://localhost:3000/tenants', { credentials: 'include' });
+      const res = await apiFetch('/tenants', { credentials: 'include' });
       if (!res.ok) return;
       const data = await res.json();
       setTenants(data || []);
@@ -115,8 +116,8 @@ function Dashboard() {
       }
       // ensure start <= end
       if (new Date(s) > new Date(e)) { const tmp = s; s = e; e = tmp; }
-      const url = `http://localhost:3000/metrics/orders-by-date?tenantId=${tenantId}&groupBy=day&startDate=${s}&endDate=${e}`;
-      const res = await fetch(url, { credentials: 'include' });
+  const url = `/metrics/orders-by-date?tenantId=${tenantId}&groupBy=day&startDate=${s}&endDate=${e}`;
+  const res = await apiFetch(url, { credentials: 'include' });
       if (!res.ok) { setOrdersData([]); return; }
       const data = await res.json();
       const rows = data.result || [];
@@ -143,7 +144,7 @@ function Dashboard() {
   async function fetchTopCustomers() {
     if (!tenantId) return;
     try {
-      const res = await fetch(`http://localhost:3000/metrics/top-customers?tenantId=${tenantId}&limit=5`, { credentials: 'include' });
+  const res = await apiFetch(`/metrics/top-customers?tenantId=${tenantId}&limit=5`, { credentials: 'include' });
       if (!res.ok) { setTopCustomers([]); return; }
       const data = await res.json();
       const rows = data.result || [];
@@ -178,7 +179,7 @@ function Dashboard() {
         e = end.toISOString().slice(0,10);
       }
       if (new Date(s) > new Date(e)) { const tmp = s; s = e; e = tmp; }
-      const res = await fetch(`http://localhost:3000/metrics/aov-by-date?tenantId=${tenantId}&groupBy=day&startDate=${s}&endDate=${e}`, { credentials: 'include' });
+  const res = await apiFetch(`/metrics/aov-by-date?tenantId=${tenantId}&groupBy=day&startDate=${s}&endDate=${e}`, { credentials: 'include' });
       if (!res.ok) return;
       const data = await res.json();
       const rows = data.result || [];
@@ -201,7 +202,7 @@ function Dashboard() {
   async function getOverview() {
     if (!tenantId) return null;
     try {
-      const res = await fetch(`http://localhost:3000/metrics/overview?tenantId=${tenantId}`, { credentials: 'include' });
+  const res = await apiFetch(`/metrics/overview?tenantId=${tenantId}`, { credentials: 'include' });
       if (!res.ok) return null;
       const data = await res.json();
       return { totalOrders: data.totalOrders, totalRevenue: data.totalRevenue, totalCustomers: data.totalCustomers };
@@ -214,7 +215,7 @@ function Dashboard() {
     if (!tenantId) return setToast({ message: 'Select a tenant first', type: 'error' });
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:3000/ingest/backfill?tenantId=${tenantId}`, { method: 'POST', credentials: 'include' });
+  const res = await apiFetch(`/ingest/backfill?tenantId=${tenantId}`, { method: 'POST', credentials: 'include' });
       const data = await res.json();
       if (!(res.ok && data.ok && data.jobId)) {
         setToast({ message: data.error || 'Backfill enqueue failed', type: 'error' });
@@ -230,7 +231,7 @@ function Dashboard() {
       while (!finished) {
         await new Promise(r => setTimeout(r, 2000));
         try {
-          const jr = await fetch(`http://localhost:3000/ingest/backfill/job/${jobId}`, { credentials: 'include' });
+          const jr = await apiFetch(`/ingest/backfill/job/${jobId}`, { credentials: 'include' });
           if (!jr.ok) continue;
           const jdata = await jr.json();
           if (jdata.status === 'running') {

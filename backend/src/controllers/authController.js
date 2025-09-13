@@ -15,12 +15,16 @@ export async function verifyCode(req, res) {
     const { email, code } = req.body;
     try {
         const sessionToken = await authService.verifyMagicCode(email, code);
-        // Set session cookie
-        res.cookie('sess', sessionToken, {
+        // Set session cookie. For cross-site (frontend on different origin) we need
+        // SameSite=None and Secure=true so browsers will accept the cookie when
+        // fetch(..., { credentials: 'include' }) is used.
+        const cookieOptions = {
             httpOnly: true,
-            sameSite: 'lax',
-            secure: process.env.COOKIE_SECURE === 'true',
-        });
+            // default to 'none' for deployed cross-site usage; local dev may override
+            sameSite: process.env.COOKIE_SAMESITE || 'none',
+            secure: (process.env.COOKIE_SECURE === 'true') || (process.env.NODE_ENV === 'production'),
+        };
+        res.cookie('sess', sessionToken, cookieOptions);
         res.json({ ok: true });
     } catch (error) {
         res.status(401).json({ ok: false, error: error.message });

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from './api';
 import heroImage from './assets/image.png';
 import Tenants from './Tenants';
 import Dashboard from './Dashboard';
@@ -19,7 +20,7 @@ function App() {
 
     useEffect(() => {
     // Check session on mount
-    fetch('http://localhost:3000/auth/me', { credentials: 'include' })
+    apiFetch('/auth/me', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (data.user) {
@@ -34,7 +35,7 @@ function App() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:3000/auth/request-code', {
+      const res = await apiFetch('/auth/request-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -57,7 +58,7 @@ function App() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:3000/auth/verify', {
+      const res = await apiFetch('/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
@@ -66,7 +67,7 @@ function App() {
       const data = await res.json();
       if (data.ok) {
         // Fetch user info
-        const userRes = await fetch('http://localhost:3000/auth/me', {
+        const userRes = await apiFetch('/auth/me', {
           credentials: 'include',
         });
         const userData = await userRes.json();
@@ -83,7 +84,7 @@ function App() {
 
   async function logout() {
     try {
-      await fetch('http://localhost:3000/auth/logout', { method: 'POST', credentials: 'include' });
+      await apiFetch('/auth/logout', { method: 'POST', credentials: 'include' });
     } catch (e) {}
     setUser(null);
     setStep(1);

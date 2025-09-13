@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { apiFetch } from './api';
 
 export default function Products() {
   const [rows, setRows] = useState([]);
@@ -16,7 +17,7 @@ export default function Products() {
 
   async function fetchData() {
     try {
-      const res = await fetch('http://localhost:3000/metrics/product-counts', { credentials: 'include' });
+  const res = await apiFetch('/metrics/product-counts', { credentials: 'include' });
       if (!res.ok) return;
       const data = await res.json();
   console.debug('fetchProductCounts result:', data);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from './api';
 
 function Tenants() {
   const [name, setName] = useState('');
@@ -14,7 +15,7 @@ function Tenants() {
 
   const fetchTenants = async () => {
     try {
-      const res = await fetch('http://localhost:3000/tenants', {
+      const res = await apiFetch('/tenants', {
         credentials: 'include',
       });
       const data = await res.json();
@@ -29,7 +30,7 @@ function Tenants() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:3000/tenants', {
+      const res = await apiFetch('/tenants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, shopDomain, accessTokenEnc }),
@@ -85,7 +86,7 @@ function Tenants() {
                 setLoading(true);
                 setError('');
                 try {
-                  const res = await fetch(`http://localhost:3000/tenants/${tenant.id}` , { method: 'DELETE', credentials: 'include' });
+                  const res = await apiFetch(`/tenants/${tenant.id}` , { method: 'DELETE', credentials: 'include' });
                   const data = await res.json();
                   if (data.ok) fetchTenants(); else setError(data.error || 'Failed to delete tenant');
                 } catch (err) { setError('Network error'); }

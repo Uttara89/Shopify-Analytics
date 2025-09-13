@@ -4,9 +4,13 @@ import path from 'path';
 import fs from 'fs/promises';
 import { fetchProductsSince, fetchCustomersSince, fetchOrdersSince } from './shopifyService.js';
 
-const prisma = new PrismaClient();
+// If a Prisma client is passed to processBackfillJob, use it; otherwise create one.
+function getPrismaClient(external) {
+  return external || new PrismaClient();
+}
 
-export async function processBackfillJob(jobId) {
+export async function processBackfillJob(jobId, externalPrisma) {
+  const prisma = getPrismaClient(externalPrisma);
   console.log(new Date().toISOString(), 'backfillJob: starting job', jobId);
   const jobsDir = path.resolve(process.cwd(), 'jobs');
   const jobPath = path.join(jobsDir, `${jobId}.json`);
@@ -29,7 +33,7 @@ export async function processBackfillJob(jobId) {
     const job = JSON.parse(raw);
     const tenantId = job.tenantId;
     console.log(new Date().toISOString(), 'backfillJob: processing tenant', tenantId);
-    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) {
       console.error(new Date().toISOString(), 'backfillJob: tenant not found for job', jobId, tenantId);
       await updateJob({ status: 'failed', error: 'tenant not found' });
